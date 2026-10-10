@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -15,48 +16,61 @@ máximo una línea de explicación.
 """
 
 api_key = st.secrets.get("GEMINI_API_KEY", "").strip()
-model = st.secrets.get("GEMINI_MODEL", "gemini-3.8-flash")
+default_model = st.secrets.get("GEMINI_MODEL", "gemini-3.8-flash")
+
+if not api_key:
+    st.warning("Falta GEMINI_API_KEY en los Secrets.")
+    st.stop()
+
+client = genai.Client(
+    api_key=api_key, http_options=types.HttpOptions(timeout=90000)
+)
+
+with st.expander("⚙️ Modelo"):
+    if st.button("Ver modelos disponibles"):
+        try:
+            st.session_state["modelos"] = sorted(
+                m.name.replace("models/", "")
+                for m in client.models.list()
+                if "generateContent" in (m.supported_actions or [])
+            )
+        except Exception as e:
+            st.error(f"No pude listar modelos: {e}")
+    opciones = st.session_state.get("modelos", [default_model])
+    idx = opciones.index(default_model) if default_model in opciones else 0
+    model = st.selectbox("Modelo", opciones, index=idx)
+    sin_pensar = st.checkbox("Desactivar thinking (más rápido)", value=True)
+
 query = st.text_input("¿Qué tono necesitas?")
 
-OPCIONES = [{"thinking_budget": 0}, {"thinking_level": "low"}, None]
-
-
-def stream_preset(client, query):
-    ultimo_error = None
-    for opt in OPCIONES:
-        empezo = False
-        try:
-            extra = {}
-            if opt:
-                extra["thinking_config"] = types.ThinkingConfig(**opt)
-            config = types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                max_output_tokens=2000,
-                **extra,
-            )
-            for chunk in client.models.generate_content_stream(
-                model=model, contents=query, config=config
-            ):
-                if chunk.text:
-                    empezo = True
-                    yield chunk.text
-            return
-        except Exception as e:
-            if empezo:
-                raise
-            ultimo_error = e
-    raise ultimo_error
-
-
 if st.button("🚀 Generar Preset"):
-    if not api_key:
-        st.warning("Falta GEMINI_API_KEY en los Secrets.")
-    elif not query.strip():
+    if not query.strip():
         st.warning("Escribe qué sonido quieres.")
     else:
-        client = genai.Client(api_key=api_key)
+        t = {"inicio": time.time(), "primera": None}
+        extra = {}
+        if sin_pensar:
+            extra["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+        config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT, max_output_tokens=2000, **extra
+        )
+
+        def gen():
+            for c in client.models.generate_content_stream(
+                model=model, contents=query, config=config
+            ):
+                if c.text:
+                    if t["primera"] is None:
+                        t["primera"] = time.time() - t["inicio"]
+                    yield c.text
+
         try:
-            text = st.write_stream(stream_preset(client, query))
+            with st.spinner("Esperando al modelo..."):
+                text = st.write_stream(gen())
+            total = time.time() - t["inicio"]
+            st.caption(
+                f"⏱ Primera palabra: {t['primera'] or 0:.1f}s · Total: {total:.1f}s"
+            )
             st.session_state["preset"] = text
             st.session_state["shown"] = True
         except Exception as e:
