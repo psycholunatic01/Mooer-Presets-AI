@@ -12,7 +12,7 @@ Eres un ingeniero de sonido y firmware especializado en la Mooer GE150 Max Li. T
 """
 
 api_key = st.sidebar.text_input("Gemini API Key (Gratis):", type="password")
-query = st.text_input("¿Qué tono necesitas?", placeholder="Ej: Van Halen - Brown Sound")
+query = st.text_input("¿Qué tono necesitas?", placeholder="Ej: Killswitch Engage - My Curse")
 
 if st.button("🚀 Generar Preset y Archivo"):
     if not api_key:
@@ -22,21 +22,29 @@ if st.button("🚀 Generar Preset y Archivo"):
     else:
         try:
             genai.configure(api_key=api_key)
-            # Usamos el modelo actual compatible
-            model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=SYSTEM_PROMPT)
             
-            with st.spinner("Procesando tono gratis..."):
-                response = model.generate_content(query)
-                preset_text = response.text
+            # Busca automáticamente el primer modelo disponible que genere contenido
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            
+            if not available_models:
+                st.error("No se encontraron modelos disponibles para esta API Key.")
+            else:
+                # Elige el primer modelo válido automáticamente
+                selected_model = available_models[0]
+                model = genai.GenerativeModel(selected_model, system_instruction=SYSTEM_PROMPT)
                 
-            st.success("¡Preset generado!")
-            st.markdown(preset_text)
-            
-            st.download_button(
-                label="📥 Descargar archivo (.txt)",
-                data=preset_text,
-                file_name=f"preset_ge150_{query.replace(' ', '_')}.txt",
-                mime="text/plain"
-            )
+                with st.spinner(f"Procesando con {selected_model}..."):
+                    response = model.generate_content(query)
+                    preset_text = response.text
+                    
+                st.success("¡Preset generado con éxito!")
+                st.markdown(preset_text)
+                
+                st.download_button(
+                    label="📥 Descargar archivo (.txt)",
+                    data=preset_text,
+                    file_name=f"preset_ge150_{query.replace(' ', '_')}.txt",
+                    mime="text/plain"
+                )
         except Exception as e:
             st.error(f"Error: {e}")
