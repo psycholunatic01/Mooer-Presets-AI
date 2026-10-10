@@ -27,6 +27,7 @@ if st.button("🚀 Generar Preset y Archivo"):
     else:
         try:
             with st.spinner("Procesando tono con la API..."):
+                # Endpoint oficial v1
                 url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
                 
                 full_prompt = f"{SYSTEM_PROMPT}\n\nSolicitud del usuario: {query}"
@@ -37,13 +38,11 @@ if st.button("🚀 Generar Preset y Archivo"):
                     }]
                 }
                 
-                headers = {"Content-Type": "application/json"}
-                
-                # Detecta automáticamente si es una API Key tradicional o un token Bearer (AQ.)
-                if api_key.startswith("AIza"):
-                    url = f"{url}?key={api_key}"
-                else:
-                    headers["Authorization"] = f"Bearer {api_key}"
+                # Encabezado estándar compatible con el formato nuevo AQ. y el clásico AIza
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key
+                }
                 
                 response = requests.post(url, headers=headers, data=json.dumps(payload))
                 
