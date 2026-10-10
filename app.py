@@ -18,14 +18,34 @@ api_key = st.secrets.get("GEMINI_API_KEY", "").strip()
 model = st.secrets.get("GEMINI_MODEL", "gemini-3.8-flash")
 query = st.text_input("¿Qué tono necesitas?")
 
+OPCIONES = [{"thinking_budget": 0}, {"thinking_level": "low"}, None]
+
 
 def stream_preset(client, query):
-    config = types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
-    for chunk in client.models.generate_content_stream(
-        model=model, contents=query, config=config
-    ):
-        if chunk.text:
-            yield chunk.text
+    ultimo_error = None
+    for opt in OPCIONES:
+        empezo = False
+        try:
+            extra = {}
+            if opt:
+                extra["thinking_config"] = types.ThinkingConfig(**opt)
+            config = types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                max_output_tokens=2000,
+                **extra,
+            )
+            for chunk in client.models.generate_content_stream(
+                model=model, contents=query, config=config
+            ):
+                if chunk.text:
+                    empezo = True
+                    yield chunk.text
+            return
+        except Exception as e:
+            if empezo:
+                raise
+            ultimo_error = e
+    raise ultimo_error
 
 
 if st.button("🚀 Generar Preset"):
