@@ -16,13 +16,11 @@ Para cada bloque indica el modelo/tipo y los parámetros relevantes con valores 
 
 MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
 
+
 @st.cache_resource
 def get_client(api_key: str):
-    if api_key.startswith("AQ."):
-        # Clave de Vertex AI (modo Express)
-        return genai.Client(vertexai=True, api_key=api_key)
-    # Clave estándar de Gemini Developer API (AIzaSy...)
     return genai.Client(api_key=api_key)
+
 
 api_key = st.secrets.get("GEMINI_API_KEY", "").strip()
 query = st.text_input("¿Qué tono necesitas?", placeholder="Ej: Killswitch Engage - My Curse")
@@ -36,25 +34,3 @@ if st.button("🚀 Generar Preset y Archivo"):
         try:
             with st.spinner("Procesando tono..."):
                 client = get_client(api_key)
-                response = client.models.generate_content(
-                    model=MODEL,
-                    contents=f"Solicitud del usuario: {query}",
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        temperature=0.7,
-                    ),
-                )
-                preset_text = response.text
-
-            st.success("¡Preset generado con éxito!")
-            st.markdown(preset_text)
-
-            safe_name = "".join(c if c.isalnum() else "_" for c in query)[:60]
-            st.download_button(
-                label="📥 Descargar archivo (.txt)",
-                data=preset_text,
-                file_name=f"preset_ge150_{safe_name}.txt",
-                mime="text/plain",
-            )
-        except Exception as e:
-            st.error(f"Error de la API: {e}")
