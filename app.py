@@ -23,6 +23,8 @@ if st.button("🚀 Generar Preset y Archivo"):
         try:
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+
+
             with st.spinner("Procesando tono gratis..."):
                 response = model.generate_content(query)
                 preset_text = response.text
