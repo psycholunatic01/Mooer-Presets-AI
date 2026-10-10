@@ -12,19 +12,22 @@ Eres un ingeniero de sonido y firmware especializado en la Mooer GE150 Max Li. T
 1. FX/COMP 2. DS/OD 3. AMP 4. CAB 5. NS 6. EQ 7. MOD 8. DELAY 9. REVERB.
 """
 
-api_key = st.sidebar.text_input("Gemini API Key (Gratis):", type="password")
+try:
+    api_key = st.secrets["GEMINI_API_KEY"].strip()
+except Exception:
+    api_key = ""
+
 query = st.text_input("¿Qué tono necesitas?", placeholder="Ej: Killswitch Engage - My Curse")
 
 if st.button("🚀 Generar Preset y Archivo"):
     if not api_key:
-        st.warning("Ingresa tu Gemini API Key de Google Studio.")
+        st.warning("Falta configurar la GEMINI_API_KEY en los Secrets de Streamlit Cloud.")
     elif not query:
         st.warning("Escribe qué sonido quieres modelar.")
     else:
         try:
-            with st.spinner("Procesando tono directamente con la API..."):
-                # Usamos v1 en lugar de v1beta para evitar el error 404
-                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+            with st.spinner("Procesando tono con la API..."):
+                url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
                 
                 full_prompt = f"{SYSTEM_PROMPT}\n\nSolicitud del usuario: {query}"
                 
@@ -35,6 +38,12 @@ if st.button("🚀 Generar Preset y Archivo"):
                 }
                 
                 headers = {"Content-Type": "application/json"}
+                
+                # Detecta automáticamente si es una API Key tradicional o un token Bearer (AQ.)
+                if api_key.startswith("AIza"):
+                    url = f"{url}?key={api_key}"
+                else:
+                    headers["Authorization"] = f"Bearer {api_key}"
                 
                 response = requests.post(url, headers=headers, data=json.dumps(payload))
                 
@@ -52,6 +61,6 @@ if st.button("🚀 Generar Preset y Archivo"):
                         mime="text/plain"
                     )
                 else:
-                    st.error(f"Error de la API: {response.text}")
+                    st.error(f"Error de la API ({response.status_code}): {response.text}")
         except Exception as e:
             st.error(f"Error técnico: {e}")
