@@ -23,10 +23,9 @@ if st.button("🚀 Generar Preset y Archivo"):
     else:
         try:
             with st.spinner("Procesando tono directamente con la API..."):
-                # URL oficial de la API REST de Gemini para evitar errores de librerías
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                # Usamos v1 en lugar de v1beta para evitar el error 404
+                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
-                # Unimos el prompt del sistema y la consulta del usuario
                 full_prompt = f"{SYSTEM_PROMPT}\n\nSolicitud del usuario: {query}"
                 
                 payload = {
