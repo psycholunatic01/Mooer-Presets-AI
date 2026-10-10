@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 
 st.set_page_config(page_title="Mooer GE150 AI Engine", page_icon="🎸")
 
@@ -21,30 +22,37 @@ if st.button("🚀 Generar Preset y Archivo"):
         st.warning("Escribe qué sonido quieres modelar.")
     else:
         try:
-            genai.configure(api_key=api_key)
-            
-            # Busca automáticamente el primer modelo disponible que genere contenido
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            
-            if not available_models:
-                st.error("No se encontraron modelos disponibles para esta API Key.")
-            else:
-                # Elige el primer modelo válido automáticamente
-                selected_model = available_models[0]
-                model = genai.GenerativeModel(selected_model, system_instruction=SYSTEM_PROMPT)
+            with st.spinner("Procesando tono directamente con la API..."):
+                # URL oficial de la API REST de Gemini para evitar errores de librerías
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
-                with st.spinner(f"Procesando con {selected_model}..."):
-                    response = model.generate_content(query)
-                    preset_text = response.text
+                # Unimos el prompt del sistema y la consulta del usuario
+                full_prompt = f"{SYSTEM_PROMPT}\n\nSolicitud del usuario: {query}"
+                
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": full_prompt}]
+                    }]
+                }
+                
+                headers = {"Content-Type": "application/json"}
+                
+                response = requests.post(url, headers=headers, data=json.dumps(payload))
+                
+                if response.status_code == 200:
+                    res_json = response.json()
+                    preset_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
                     
-                st.success("¡Preset generado con éxito!")
-                st.markdown(preset_text)
-                
-                st.download_button(
-                    label="📥 Descargar archivo (.txt)",
-                    data=preset_text,
-                    file_name=f"preset_ge150_{query.replace(' ', '_')}.txt",
-                    mime="text/plain"
-                )
+                    st.success("¡Preset generado con éxito!")
+                    st.markdown(preset_text)
+                    
+                    st.download_button(
+                        label="📥 Descargar archivo (.txt)",
+                        data=preset_text,
+                        file_name=f"preset_ge150_{query.replace(' ', '_')}.txt",
+                        mime="text/plain"
+                    )
+                else:
+                    st.error(f"Error de la API: {response.text}")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error técnico: {e}")
