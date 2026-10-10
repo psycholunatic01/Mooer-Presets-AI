@@ -30,3 +30,16 @@ if st.button("🚀 Generar Preset"):
                 r = client.models.generate_content(
                     model=model, contents=query, config=config
                 )
+                st.session_state["preset"] = r.text
+            except Exception as e:
+                st.session_state["preset"] = None
+                st.error(f"Error de la API: {e}")
+
+if st.session_state.get("preset"):
+    st.markdown(st.session_state["preset"])
+    st.download_button(
+        "📥 Descargar .txt",
+        st.session_state["preset"],
+        file_name="preset_ge150.txt",
+        mime="text/plain",
+    )
